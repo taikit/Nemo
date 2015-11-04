@@ -34,7 +34,7 @@
 			$i=0;
 			while($row=$result->fetch(PDO::FETCH_ASSOC)){
 				echo "<table border='1'><tr>";
-					echo "<td><img src='".$row["picture"]."' width=50 height=50></td>";
+					echo "<td><img src='".$row["picture"]."' width=100 height=100></td>";
 					echo "<td>".$row["time"]."</td></tr>";
 					echo "<form action='find.php' method='post'>";
 						echo "<input type='hidden' name='id' value='".$row["id"]."'><input type='submit' value='見つけた'>";
