@@ -1,14 +1,12 @@
-﻿2015/11/04 17:11:40 にビルドを開始しました。
+﻿2015/11/04 20:56:50 にビルドを開始しました。
      1>ノード 2 上のプロジェクト "C:\Users\TAIKI\Desktop\Nemo\kinect_server\SkeletonBasics-D2D.vcxproj" (Build ターゲット)。
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /IC:\Users\TAIKI\Desktop\Nemo\kinect_server\packages\OpenCV.2.4.10\build\native\../../build/native/include/ /ZI /nologo /W3 /WX- /Od /Oy- /D HAS_OPENCV /D WIN32 /D _DEBUG /D _WINDOWS /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MTd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt SkeletonBasics.cpp
          SkeletonBasics.cpp
-     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(403): warning C4102: 'std': ラベルは 1 度も参照されません。
-     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(395): warning C4101: 'head_x': ローカル変数は 1 度も使われていません。
-     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(394): warning C4101: 'r_leg_x': ローカル変数は 1 度も使われていません。
-     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(394): warning C4101: 'r_leg_z': ローカル変数は 1 度も使われていません。
-       ResourceCompile:
-         C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _UNICODE /D UNICODE /l"0x0409" /IC:\Users\TAIKI\Desktop\Nemo\kinect_server\packages\OpenCV.2.4.10\build\native\../../build/native/include/ /nologo /fo"Debug\SkeletonBasics.res" SkeletonBasics.rc 
+     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(466): warning C4102: 'std': ラベルは 1 度も参照されません。
+     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(457): warning C4101: 'head_x': ローカル変数は 1 度も使われていません。
+     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(456): warning C4101: 'r_leg_x': ローカル変数は 1 度も使われていません。
+     1>c:\users\taiki\desktop\nemo\kinect_server\skeletonbasics.cpp(456): warning C4101: 'r_leg_z': ローカル変数は 1 度も使われていません。
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\TAIKI\Desktop\Nemo\kinect_server\Debug\SkeletonBasics-D2D.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Kinect10.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\TAIKI\Desktop\Nemo\kinect_server\Debug\SkeletonBasics-D2D.pdb" /SUBSYSTEM:WINDOWS /STACK:"10000000","10000000" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\TAIKI\Desktop\Nemo\kinect_server\Debug\SkeletonBasics-D2D.lib" /MACHINE:X86 Debug\SkeletonBasics.res
          Debug\SkeletonBasics.obj
@@ -17,4 +15,4 @@
 
 ビルドに成功しました。
 
-経過時間 00:00:06.99
+経過時間 00:00:04.83

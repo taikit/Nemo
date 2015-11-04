@@ -18,9 +18,24 @@ static const float g_InferredBoneThickness = 1.0f;
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <NuiApi.h>
 using namespace std;
 
 int last_sent_body_id;
+
+//-------------------
+#include <sstream>
+#include <map>
+#include <atlbase.h>
+
+HRESULT hResult = S_OK;
+HANDLE hColorEvent = INVALID_HANDLE_VALUE;
+HANDLE hColorHandle = INVALID_HANDLE_VALUE;
+INuiColorCameraSettings* pCameraSettings;
+HANDLE hEvents[1] = { hColorEvent };
+INuiSensor * pNuiSensor;
+
+//-------------------
 
 
 /// <summary>
@@ -86,6 +101,7 @@ CSkeletonBasics::~CSkeletonBasics()
 /// <param name="nCmdShow">whether to display minimized, maximized, or normally</param>
 int CSkeletonBasics::Run(HINSTANCE hInstance, int nCmdShow)
 {
+
     MSG       msg = {0};
     WNDCLASS  wc  = {0};
 
@@ -110,6 +126,7 @@ int CSkeletonBasics::Run(HINSTANCE hInstance, int nCmdShow)
         NULL,
         (DLGPROC)CSkeletonBasics::MessageRouter, 
         reinterpret_cast<LPARAM>(this));
+
 
     // Show window
     ShowWindow(hWndApp, nCmdShow);
@@ -255,7 +272,7 @@ LRESULT CALLBACK CSkeletonBasics::DlgProc(HWND hWnd, UINT message, WPARAM wParam
 /// <returns>indicates success or failure</returns>
 HRESULT CSkeletonBasics::CreateFirstConnected()
 {
-    INuiSensor * pNuiSensor;
+
 
     int iSensorCount = 0;
     HRESULT hr = NuiGetSensorCount(&iSensorCount);
@@ -289,7 +306,7 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
     if (NULL != m_pNuiSensor)
     {
         // Initialize the Kinect and specify that we'll be using skeleton
-        hr = m_pNuiSensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_SKELETON); 
+        hr = m_pNuiSensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_SKELETON | NUI_INITIALIZE_FLAG_USES_COLOR);
         if (SUCCEEDED(hr))
         {
             // Create an event that will be signaled when skeleton data is available
@@ -298,6 +315,49 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
             // Open a skeleton stream to receive skeleton data
             hr = m_pNuiSensor->NuiSkeletonTrackingEnable(m_hNextSkeletonEvent, 0); 
         }
+
+
+		//------test
+
+
+
+		// Colorストリームの開始
+
+		FILE *fp;
+		::AllocConsole();
+		freopen_s(&fp, "CON", "w", stdout);    // 標準出力の割り当て
+		std::cout << "Start!" << std::endl;
+
+		hResult = NuiCreateSensorByIndex(0, &pNuiSensor);
+
+		hColorEvent = CreateEvent(nullptr, true, false, nullptr);
+		hResult = pNuiSensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_COLOR, NUI_IMAGE_RESOLUTION_640x480, 0, 2, hColorEvent, &hColorHandle);
+		if (FAILED(hResult)) {
+			std::cout << "Error : NuiImageStreamOpen( COLOR )" << std::endl;
+			return -1;
+		}
+
+		// Colorカメラの設定
+		//hResult = pNuiSensor->NuiGetColorCameraSettings(&pCameraSettings);
+		if (FAILED(hResult)) {
+			std::cout << "Error : NuiGetColorCameraSettings" << std::endl;
+			return -1;
+		}
+		double contrast = 1.0f;
+		pCameraSettings->GetContrast(&contrast);
+		std::cout << "Contrast : " << contrast << std::endl;
+
+		// 解像度の取得
+		unsigned long refWidth = 0;
+		unsigned long refHeight = 0;
+		NuiImageResolutionToSize(NUI_IMAGE_RESOLUTION_640x480, refWidth, refHeight);
+		int width = static_cast<int>(refWidth);
+		int height = static_cast<int>(refHeight);
+
+		hEvents[1] = { hColorEvent };
+
+
+		//----test
     }
 
     if (NULL == m_pNuiSensor || FAILED(hr))
@@ -305,6 +365,8 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
         SetStatusMessage(L"No ready Kinect found!");
         return E_FAIL;
     }
+
+	
 
     return hr;
 }
@@ -397,6 +459,7 @@ void CSkeletonBasics::DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWid
 	head_y = skel.SkeletonPositions[NUI_SKELETON_POSITION_HEAD].y;
 	spine_z = skel.SkeletonPositions[NUI_SKELETON_POSITION_SPINE].z;
 	r_leg_y = skel.SkeletonPositions[NUI_SKELETON_POSITION_FOOT_RIGHT].y;
+
 	
 	if (2.4 < spine_z && spine_z < 2.7 && last_sent_body_id != body_i){
 		//test
@@ -406,6 +469,29 @@ void CSkeletonBasics::DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWid
 		writing_file.close();
 		std::cout << head_y - r_leg_y + 0.14 << "," << spine_z << "," << body_i << "," << last_sent_body_id << endl;
 		last_sent_body_id = body_i;
+
+		// フレームの更新待ち
+		ResetEvent(hColorEvent);
+		WaitForMultipleObjects(ARRAYSIZE(hEvents), hEvents, true, INFINITE);
+
+		// Colorカメラからフレームを取得
+		NUI_IMAGE_FRAME colorImageFrame = { 0 };
+		hResult = pNuiSensor->NuiImageStreamGetNextFrame(hColorHandle, 0, &colorImageFrame);
+		if (FAILED(hResult)) {
+			std::cout << "Error : NuiImageStreamGetNextFrame( COLOR )" << std::endl;
+		}
+
+		// Color画像データの取得
+		INuiFrameTexture* pColorFrameTexture = colorImageFrame.pFrameTexture;
+		NUI_LOCKED_RECT colorLockedRect;
+		pColorFrameTexture->LockRect(0, &colorLockedRect, nullptr, 0);
+		
+
+		//--------
+
+		// フレームの解放
+		//pColorFrameTexture->UnlockRect(0);
+		//pNuiSensor->NuiImageStreamReleaseFrame(hColorHandle, &colorImageFrame);
 	}
 
 	//---------------------------------------------------------------------
