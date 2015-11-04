@@ -9,13 +9,18 @@
 #include "SkeletonBasics.h"
 #include "resource.h"
 
+#include <opencv2\opencv.hpp>
+
 static const float g_JointThickness = 3.0f;
 static const float g_TrackedBoneThickness = 6.0f;
 static const float g_InferredBoneThickness = 1.0f;
 
 #include <string>
 #include <iostream>
+#include <fstream>
 using namespace std;
+
+int last_sent_body_id;
 
 
 /// <summary>
@@ -335,14 +340,16 @@ void CSkeletonBasics::ProcessSkeleton()
     int width = rct.right;
     int height = rct.bottom;
 
+
     for (int i = 0 ; i < NUI_SKELETON_COUNT; ++i)
     {
+
         NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[i].eTrackingState;
 
         if (NUI_SKELETON_TRACKED == trackingState)
         {
             // We're tracking the skeleton, draw it
-            DrawSkeleton(skeletonFrame.SkeletonData[i], width, height);
+            DrawSkeleton(skeletonFrame.SkeletonData[i], width, height, i);
         }
         else if (NUI_SKELETON_POSITION_ONLY == trackingState)
         {
@@ -374,29 +381,44 @@ void CSkeletonBasics::ProcessSkeleton()
 /// <param name="skel">skeleton to draw</param>
 /// <param name="windowWidth">width (in pixels) of output buffer</param>
 /// <param name="windowHeight">height (in pixels) of output buffer</param>
-void CSkeletonBasics::DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWidth, int windowHeight)
+void CSkeletonBasics::DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWidth, int windowHeight, int body_i)
 {      
+
+	//--------------------------------------------------------------------
+
+	FILE *fp;
+	::AllocConsole();
+	freopen_s(&fp, "CON", "w", stdout);    // 標準出力の割り当て
+
     int i;
+	float r_leg_x, r_leg_y, r_leg_z;
+	float head_x, head_y, spine_z;
+	
+	head_y = skel.SkeletonPositions[NUI_SKELETON_POSITION_HEAD].y;
+	spine_z = skel.SkeletonPositions[NUI_SKELETON_POSITION_SPINE].z;
+	r_leg_y = skel.SkeletonPositions[NUI_SKELETON_POSITION_FOOT_RIGHT].y;
+	
+	if (2.4 < spine_z && spine_z < 2.7 && last_sent_body_id != body_i){
+		//test
+		std:ofstream writing_file;
+		writing_file.open("yz.txt", std::ios::app);
+		writing_file << head_y - r_leg_y << "," << spine_z << std::endl;
+		writing_file.close();
+		std::cout << head_y - r_leg_y + 0.14 << "," << spine_z << "," << body_i << "," << last_sent_body_id << endl;
+		last_sent_body_id = body_i;
+	}
+
+	//---------------------------------------------------------------------
+
 
     for (i = 0; i < NUI_SKELETON_POSITION_COUNT; ++i)
     {
         m_Points[i] = SkeletonToScreen(skel.SkeletonPositions[i], windowWidth, windowHeight);
-		
-		FILE *fp;
-		::AllocConsole();
-		freopen_s(&fp, "CON", "w", stdout);    // 標準出力の割り当て
-
-		std::cout << i << ":(";
-		std::cout << skel.SkeletonPositions[i].x << "," 
-					<< skel.SkeletonPositions[i].y << ","
-					<< skel.SkeletonPositions[i].z << ")" << endl;
-
-
+//std::cout << i << ":(";
+//td::cout << skel.SkeletonPositions[i].x << "," 
+//	<< skel.SkeletonPositions[i].y << ","
+//<< skel.SkeletonPositions[i].z << ")" << endl;
     }
-
-	//
-
-
 
     // Render Torso
     DrawBone(skel, NUI_SKELETON_POSITION_HEAD, NUI_SKELETON_POSITION_SHOULDER_CENTER);

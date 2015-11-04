@@ -117,7 +117,7 @@ private:
     /// <param name="skel">skeleton to draw</param>
     /// <param name="windowWidth">width (in pixels) of output buffer</param>
     /// <param name="windowHeight">height (in pixels) of output buffer</param>
-    void                    DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWidth, int windowHeight);
+    void                    DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWidth, int windowHeight, int i);
 
     /// <summary>
     /// Converts a skeleton point to screen space
