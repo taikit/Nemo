@@ -9,19 +9,22 @@
 #include "SkeletonBasics.h"
 #include "resource.h"
 
+#include <iostream>
 #include <opencv2\opencv.hpp>
+//#include <opencv2\core\core.hpp>
+
 
 static const float g_JointThickness = 3.0f;
 static const float g_TrackedBoneThickness = 6.0f;
 static const float g_InferredBoneThickness = 1.0f;
 
 #include <string>
-#include <iostream>
 #include <fstream>
 #include <NuiApi.h>
 using namespace std;
 
 int last_sent_body_id;
+int shutter = 1;
 
 //-------------------
 #include <sstream>
@@ -32,8 +35,9 @@ HRESULT hResult = S_OK;
 HANDLE hColorEvent = INVALID_HANDLE_VALUE;
 HANDLE hColorHandle = INVALID_HANDLE_VALUE;
 INuiColorCameraSettings* pCameraSettings;
-HANDLE hEvents[1] = { hColorEvent };
 INuiSensor * pNuiSensor;
+
+NUI_IMAGE_FRAME colorImageFrame = { 0 };
 
 //-------------------
 
@@ -138,11 +142,18 @@ int CSkeletonBasics::Run(HINSTANCE hInstance, int nCmdShow)
     while (WM_QUIT != msg.message)
     {
         hEvents[0] = m_hNextSkeletonEvent;
+		hEvents[1] = hColorEvent;
 
         // Check to see if we have either a message (by passing in QS_ALLEVENTS)
         // Or a Kinect event (hEvents)
         // Update() will check for Kinect events individually, in case more than one are signalled
         MsgWaitForMultipleObjects(eventCount, hEvents, FALSE, INFINITE, QS_ALLINPUT);
+
+
+		// フレームの更新待ち
+		//ResetEvent(hColorEvent);
+		//WaitForMultipleObjects(ARRAYSIZE(hEvents), hEvents, true, INFINITE);
+
 
         // Explicitly check the Kinect frame event since MsgWaitForMultipleObjects
         // can return for other reasons even though it is signaled.
@@ -179,6 +190,48 @@ void CSkeletonBasics::Update()
     {
         ProcessSkeleton();
     }
+
+	if (WAIT_OBJECT_0 == WaitForSingleObject(hColorEvent, 0))
+	{
+		// Colorカメラからフレームを取得
+		hResult = m_pNuiSensor->NuiImageStreamGetNextFrame(hColorHandle, 0, &colorImageFrame);
+		if (FAILED(hResult)) {
+			std::cout << "Error : NuiImageStreamGetNextFrame( COLOR )" << std::endl;
+			return;
+		}
+
+		if (shutter == 1) {
+			// Color画像データの取得
+			INuiFrameTexture* pColorFrameTexture = colorImageFrame.pFrameTexture;
+			NUI_LOCKED_RECT colorLockedRect;
+			pColorFrameTexture->LockRect(0, &colorLockedRect, nullptr, 0);
+
+
+			// Retrieve the path to My Photos
+			WCHAR screenshotPath[MAX_PATH];
+			GetScreenshotFileName(screenshotPath, _countof(screenshotPath));
+
+			// Write out the bitmap to disk
+			hResult = SaveBitmapToFile(static_cast<BYTE *>(colorLockedRect.pBits), 640, 480, 32, screenshotPath);
+
+			if (SUCCEEDED(hResult))
+			{
+				std::cout << "saved" << std::endl;
+			}
+			else
+			{
+				std::cout << "unsave!!" << std::endl;
+			}
+
+
+			// フレームの解放
+			pColorFrameTexture->UnlockRect(0);
+			shutter = 0;
+		}
+
+		//リリース
+		pNuiSensor->NuiImageStreamReleaseFrame(hColorHandle, &colorImageFrame);
+	}
 }
 
 /// <summary>
@@ -312,6 +365,10 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
             // Create an event that will be signaled when skeleton data is available
             m_hNextSkeletonEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
 
+			//test
+			hColorEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+
+
             // Open a skeleton stream to receive skeleton data
             hr = m_pNuiSensor->NuiSkeletonTrackingEnable(m_hNextSkeletonEvent, 0); 
         }
@@ -330,7 +387,7 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
 
 		hResult = NuiCreateSensorByIndex(0, &pNuiSensor);
 
-		hColorEvent = CreateEvent(nullptr, true, false, nullptr);
+		
 		hResult = pNuiSensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_COLOR, NUI_IMAGE_RESOLUTION_640x480, 0, 2, hColorEvent, &hColorHandle);
 		if (FAILED(hResult)) {
 			std::cout << "Error : NuiImageStreamOpen( COLOR )" << std::endl;
@@ -339,13 +396,14 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
 
 		// Colorカメラの設定
 		//hResult = pNuiSensor->NuiGetColorCameraSettings(&pCameraSettings);
+		
 		if (FAILED(hResult)) {
 			std::cout << "Error : NuiGetColorCameraSettings" << std::endl;
 			return -1;
 		}
 		double contrast = 1.0f;
-		pCameraSettings->GetContrast(&contrast);
-		std::cout << "Contrast : " << contrast << std::endl;
+		//pCameraSettings->GetContrast(&contrast);
+		//std::cout << "Contrast : " << contrast << std::endl;
 
 		// 解像度の取得
 		unsigned long refWidth = 0;
@@ -353,9 +411,6 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
 		NuiImageResolutionToSize(NUI_IMAGE_RESOLUTION_640x480, refWidth, refHeight);
 		int width = static_cast<int>(refWidth);
 		int height = static_cast<int>(refHeight);
-
-		hEvents[1] = { hColorEvent };
-
 
 		//----test
     }
@@ -470,28 +525,7 @@ void CSkeletonBasics::DrawSkeleton(const NUI_SKELETON_DATA & skel, int windowWid
 		std::cout << head_y - r_leg_y + 0.14 << "," << spine_z << "," << body_i << "," << last_sent_body_id << endl;
 		last_sent_body_id = body_i;
 
-		// フレームの更新待ち
-		ResetEvent(hColorEvent);
-		WaitForMultipleObjects(ARRAYSIZE(hEvents), hEvents, true, INFINITE);
-
-		// Colorカメラからフレームを取得
-		NUI_IMAGE_FRAME colorImageFrame = { 0 };
-		hResult = pNuiSensor->NuiImageStreamGetNextFrame(hColorHandle, 0, &colorImageFrame);
-		if (FAILED(hResult)) {
-			std::cout << "Error : NuiImageStreamGetNextFrame( COLOR )" << std::endl;
-		}
-
-		// Color画像データの取得
-		INuiFrameTexture* pColorFrameTexture = colorImageFrame.pFrameTexture;
-		NUI_LOCKED_RECT colorLockedRect;
-		pColorFrameTexture->LockRect(0, &colorLockedRect, nullptr, 0);
-		
-
-		//--------
-
-		// フレームの解放
-		//pColorFrameTexture->UnlockRect(0);
-		//pNuiSensor->NuiImageStreamReleaseFrame(hColorHandle, &colorImageFrame);
+		shutter = 1;
 	}
 
 	//---------------------------------------------------------------------
@@ -671,4 +705,85 @@ void CSkeletonBasics::DiscardDirect2DResources( )
 void CSkeletonBasics::SetStatusMessage(WCHAR * szMessage)
 {
     SendDlgItemMessageW(m_hWnd, IDC_STATUS, WM_SETTEXT, 0, (LPARAM)szMessage);
+}
+
+
+
+
+//セーブ
+HRESULT CSkeletonBasics::SaveBitmapToFile(BYTE* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCWSTR lpszFilePath)
+{
+	DWORD dwByteCount = lWidth * lHeight * (wBitsPerPixel / 8);
+
+	BITMAPINFOHEADER bmpInfoHeader = { 0 };
+
+	bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);  // Size of the header
+	bmpInfoHeader.biBitCount = wBitsPerPixel;             // Bit count
+	bmpInfoHeader.biCompression = BI_RGB;                    // Standard RGB, no compression
+	bmpInfoHeader.biWidth = lWidth;                    // Width in pixels
+	bmpInfoHeader.biHeight = -lHeight;                  // Height in pixels, negative indicates it's stored right-side-up
+	bmpInfoHeader.biPlanes = 1;                         // Default
+	bmpInfoHeader.biSizeImage = dwByteCount;               // Image size in bytes
+
+	BITMAPFILEHEADER bfh = { 0 };
+
+	bfh.bfType = 0x4D42;                                           // 'M''B', indicates bitmap
+	bfh.bfOffBits = bmpInfoHeader.biSize + sizeof(BITMAPFILEHEADER);  // Offset to the start of pixel data
+	bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;        // Size of image + headers
+
+																   // Create the file on disk to write to
+	HANDLE hFile = CreateFileW(lpszFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	// Return if error opening file
+	if (NULL == hFile)
+	{
+		return E_ACCESSDENIED;
+	}
+
+	DWORD dwBytesWritten = 0;
+
+	// Write the bitmap file header
+	if (!WriteFile(hFile, &bfh, sizeof(bfh), &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Write the bitmap info header
+	if (!WriteFile(hFile, &bmpInfoHeader, sizeof(bmpInfoHeader), &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Write the RGB Data
+	if (!WriteFile(hFile, pBitmapBits, bmpInfoHeader.biSizeImage, &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Close the file
+	CloseHandle(hFile);
+	return S_OK;
+}
+
+HRESULT CSkeletonBasics::GetScreenshotFileName(wchar_t *screenshotName, UINT screenshotNameSize)
+{
+	wchar_t *knownPath = NULL;
+	HRESULT hr = SHGetKnownFolderPath(FOLDERID_Pictures, 0, NULL, &knownPath);
+	wchar_t *knownPath2 = { L"C:\\xampp\\htdocs\\nemo\\shots" };
+
+	if (SUCCEEDED(hr))
+	{   
+		// Get the time
+		wchar_t timeString[MAX_PATH];
+		GetTimeFormatEx(NULL, 0, NULL, L"hh'-'mm'-'ss", timeString, _countof(timeString));
+
+		// File name will be KinectSnapshot-HH-MM-SS.wav
+		StringCchPrintfW(screenshotName, screenshotNameSize, L"%s\\KinectSnapshot-%s.bmp", knownPath2, timeString);
+	}
+
+	CoTaskMemFree(knownPath);
+	return hr;
 }

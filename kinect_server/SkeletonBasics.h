@@ -17,6 +17,11 @@ class CSkeletonBasics
     static const int        cStatusMessageMaxLen = MAX_PATH*2;
 
 public:
+
+	HRESULT		GetScreenshotFileName(wchar_t *screenshotName, UINT screenshotNameSize);
+	HRESULT		SaveBitmapToFile(BYTE* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCWSTR lpszFilePath);
+
+
     /// <summary>
     /// Constructor
     /// </summary>
@@ -134,4 +139,6 @@ private:
     /// </summary>
     /// <param name="szMessage">message to display</param>
     void                    SetStatusMessage(WCHAR* szMessage);
+
+
 };
